@@ -30,6 +30,7 @@ void InitializeHandlers()
 	{
 #define BUILDER(N) gBuilders[Protocol:: N ::ID	] = BuilderTemplate<Protocol:: N ::Response>
 
+		BUILDER(BuyArcade);
 		BUILDER(CheckServerConnection);
 		BUILDER(CheckUpdateTable);
 		BUILDER(CreateAndLogin);

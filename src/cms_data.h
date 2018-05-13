@@ -145,6 +145,8 @@ struct CMS_Guide : public Json::ISerializeable
 };
 struct CMS_Item : public Json::ISerializeable
 {
+	const std::string& GetSearchKey() const { return ItemCode; }
+
 	enum ItemTypeCodes
 	{
 		Item			= 1,
@@ -478,6 +480,8 @@ struct CMS_Mode_Standard_GroupList : public Json::ISerializeable
 };
 struct CMS_Mode_Story : public Json::ISerializeable
 {
+	int GetSearchKey() const { return StoryNo; }
+
 	int StoryNo;
 	int MusicNo;
 	std::string StageName;
@@ -513,6 +517,8 @@ struct CMS_Mode_Story : public Json::ISerializeable
 };
 struct CMS_Music : public Json::ISerializeable
 {
+	int GetSearchKey() const { return MusicNo; }
+
 	int MusicNo;
 	std::string SongName;
 	std::string ComposerName;
@@ -1001,7 +1007,6 @@ struct CMSData : public Json::ISerializeable
 	std::vector<CMS_WeeklyRankingTier> cms_WeeklyRankingTier;
 	std::vector<CMS_LoadingTip> cms_LoadingTip;
 
-
 	void Serialize(Json::Serializer& serializer) override
 	{
 		SERIALIZE_JSON(isUpdate);
@@ -1047,31 +1052,29 @@ struct CMSData : public Json::ISerializeable
 		SERIALIZE_JSON(cms_LoadingTip);
 	}
 
-	const CMS_Mode_Story* FindStoryById(int storyId) const
-	{
-		const CMS_Mode_Story* story = nullptr;
-		for (const CMS_Mode_Story& itr : cms_Mode_Story)
-		{
-			if (itr.StoryNo == storyId)
-			{
-				story = &itr;
-				break;
-			}
-		}
-		return story;
-	}
+	template<typename TCMS_DATA>
+	const std::vector<TCMS_DATA>& GetContainerByType() const;
 
-	const CMS_Item* FindItemById(const std::string& itemCode) const
+	template<typename TCMS_DATA, typename TKey>
+	const TCMS_DATA* FindDataByKey(const TKey& key) const
 	{
-		const CMS_Item* item = nullptr;
-		for (const CMS_Item& itr : cms_Item)
+		const TCMS_DATA* data = nullptr;
+		const std::vector<TCMS_DATA>& cmsContainer = GetContainerByType<TCMS_DATA>();
+		for (const TCMS_DATA& itr : cmsContainer)
 		{
-			if (itr.ItemCode == itemCode)
+			if (itr.GetSearchKey() == key)
 			{
-				item = &itr;
+				data = &itr;
 				break;
 			}
 		}
-		return item;
+		return data;
 	}
 };
+
+template<>
+inline const std::vector<CMS_Mode_Story>& CMSData::GetContainerByType() const { return cms_Mode_Story; }
+template<>
+inline const std::vector<CMS_Item>& CMSData::GetContainerByType() const { return cms_Item; }
+template<>
+inline const std::vector<CMS_Music>& CMSData::GetContainerByType() const { return cms_Music; }

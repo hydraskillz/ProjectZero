@@ -36,8 +36,7 @@ struct Player_UserValue : public Json::ISerializeable
 	{
 		SERIALIZE_JSON(ValueKey);
 		SERIALIZE_JSON(intValue);
-		if (serializer.IsWriting() && !stringValue.empty())
-			SERIALIZE_JSON(stringValue);
+		SERIALIZE_JSON_IF_NOT_EMPTY(stringValue);
 	}
 };
 

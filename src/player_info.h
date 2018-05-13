@@ -34,13 +34,7 @@ struct PlayerInfo : public Json::ISerializeable
 			return;
 		}
 
-		// Skip language if not set. I don't think it ever gets set, which is why the voices ingame are korean always
-		// TODO: set this correctly?
-		if (serializer.IsWriting() && !Language.empty())
-		{
-			SERIALIZE_JSON(Language);
-		}
-
+		SERIALIZE_JSON_IF_NOT_EMPTY(Language);
 		SERIALIZE_JSON(name);
 		SERIALIZE_JSON(jewel);
 		SERIALIZE_JSON(gold);

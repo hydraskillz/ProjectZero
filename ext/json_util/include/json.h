@@ -16,6 +16,14 @@
 		Json::Write(serializer.GetWriter(), #value, value);					\
 	else Json::Read(serializer.GetReader(), #value, value)
 
+#define SERIALIZE_JSON_IF_NOT_EMPTY(value)									\
+	if (serializer.IsWriting())												\
+	{																		\
+		if (!value.empty())													\
+			Json::Write(serializer.GetWriter(), #value, value);				\
+	}																		\
+	else Json::Read(serializer.GetReader(), #value, value)
+
 namespace Json
 {
 	/// <summary> Wraps the read/write type. </summary>

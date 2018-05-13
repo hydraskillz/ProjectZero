@@ -206,7 +206,7 @@ bool Protocol::DoClearStory::Response::HandleRequest(const rapidjson::Value& act
 	if (playerData)
 	{
 		const CMSData& cmsData = Server::GetCMSData();
-		const CMS_Mode_Story* story = cmsData.FindStoryById(playerData->playerInfo.currentStory);
+		const CMS_Mode_Story* story = cmsData.FindDataByKey<CMS_Mode_Story>(playerData->playerInfo.currentStory);
 		// Make sure we actually were on a story
 		if (story)
 		{
@@ -304,5 +304,64 @@ bool Protocol::DoClearStory::Response::HandleRequest(const rapidjson::Value& act
 		}
 	}
 
+	return success;
+}
+
+bool Protocol::BuyArcade::Response::HandleRequest(const rapidjson::Value& action, player_id playerID)
+{
+	bool success = false;
+	PlayerDataBlob* playerData = PlayerDB::FindPlayerDataBlob(playerID);
+	if (playerData)
+	{
+		Request req;
+		DeserializeRequest(action, req);
+
+		// Find the stage they want to buy
+		const CMS_Music* music = Server::GetCMSData().FindDataByKey<CMS_Music>(req.aparams.arcadeStageNo);
+		if (music)
+		{
+			bool isValidPurchase = false;
+			if (req.aparams.buyWay == "GOLD")
+			{
+				// TODO - take gold
+				isValidPurchase = true;
+			}
+			else if (req.aparams.buyWay == "STAR_CUBE")
+			{
+				// TODO - take star cubes
+				isValidPurchase = true;
+			}
+			// can tickets buys songs?
+
+			if (isValidPurchase)
+			{
+				success = true;
+
+				// Advance the tutorial once the first song is purchased
+				if (playerData->playerInfo.TutorialNo < 2)
+				{
+					playerData->playerInfo.TutorialNo = 2;
+				}
+
+				// add song
+				PlayerData_ArcadeStage song;
+				song.AddBy = "GOLD"; // idk if settings this correctly matters at all
+				song.MusicNo = music->MusicNo;
+				playerData->playerState.playerData_ArcadeStage.push_back(song);
+
+				// Save
+				PlayerDB::SavePlayerData(playerID);
+
+				// Setup respone data
+				buyArcadeResult.isValidRequest = true;
+				buyArcadeResult.playerInfo = playerData->playerInfo;
+				buyArcadeResult.userValueList = playerData->playerState.player_UserValue;
+				buyArcadeResult.items = playerData->itemData.items;
+				buyArcadeResult.playerArcadeList = playerData->playerState.playerData_ArcadeStage;
+				buyArcadeResult.playerStoryList = playerData->playerState.playerData_Story;
+				buyArcadeResult.playerQuestList = playerData->playerState.player_Quest;
+			}
+		}
+	}
 	return success;
 }

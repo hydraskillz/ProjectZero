@@ -39,7 +39,7 @@ void PlayerDataBlob::AddItem(const std::string& itemCode, int quantity)
 		itemData.items.push_back(Player_Item(itemCode, quantity));
 	}
 
-	const CMS_Item* item = Server::GetCMSData().FindItemById(itemCode);
+	const CMS_Item* item = Server::GetCMSData().FindDataByKey<CMS_Item>(itemCode);
 	if (item)
 	{
 		switch (item->ItemType)
@@ -159,10 +159,10 @@ player_id PlayerDB::CreateNewPlayer()
 		// Default user values - TODO: move to data file
 		playerState.SetUserValue("ArcadeClear_Count", 0, "");
 		playerState.SetUserValue("BuyArcade_ByGold_Count", 1, "");
-		playerState.SetUserValue("ValueKey=Current_QuestID", 0, "Tutorial010");
+		playerState.SetUserValue("Current_QuestID", 0, "Tutorial010");
 		playerState.SetUserValue("FingerTutor_Step", 1, "");
 		playerState.SetUserValue("FirstChapter_Order_No", 1, "");
-		playerState.SetUserValue("ValueKey=Language", 0, "EN");
+		playerState.SetUserValue("Language", 0, "EN");
 
 		// I don't know what this is for
 		playerState.playerData_Story.push_back(PlayerData_Story());

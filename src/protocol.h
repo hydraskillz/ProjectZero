@@ -66,7 +66,7 @@ namespace Protocol
 			SERIALIZE_JSON(status);
 			SERIALIZE_JSON(status_code);
 			// Only write value if the code was an error
-			if (serializer.IsWriting() && status_code != 0)
+			if (status_code != 0)
 			{
 				SERIALIZE_JSON(status_value);
 			}
@@ -853,4 +853,86 @@ namespace Protocol
 			bool HandleRequest(const rapidjson::Value& action, player_id playerID) override;
 		};
 	}
+
+	namespace BuyArcade
+	{
+		constexpr const char* ID = "buy_arcade";
+
+		struct Aparams : public Json::ISerializeable
+		{
+			std::string buyWay;
+			int arcadeStageNo;
+
+			void Serialize(Json::Serializer& serializer) override
+			{
+				SERIALIZE_JSON(buyWay);
+				SERIALIZE_JSON(arcadeStageNo);
+			}
+		};
+
+		struct Request : Protocol::Request
+		{
+			const char* GetID() const override { return ID; }
+
+			Aparams aparams;
+
+			void Serialize(Json::Serializer& serializer) override
+			{
+				Protocol::Request::Serialize(serializer);
+				SERIALIZE_JSON(aparams);
+			}
+		};
+
+		struct Response : Protocol::Response
+		{
+			const char* GetID() const override { return ID; }
+
+			struct BuyArcadeResult : public Json::ISerializeable
+			{
+				bool isValidRequest = false;
+				PlayerInfo playerInfo;
+				std::vector<Player_UserValue> userValueList;
+				std::vector<Player_Item> items;
+				std::vector<PlayerData_ArcadeStage> playerArcadeList;
+				std::vector<PlayerData_Story> playerStoryList;
+				std::vector<Player_Quest> playerQuestList;
+
+				void Serialize(Json::Serializer& serializer) override
+				{
+					SERIALIZE_JSON(isValidRequest);
+					SERIALIZE_JSON(playerInfo);
+					SERIALIZE_JSON(userValueList);
+					SERIALIZE_JSON(items);
+					SERIALIZE_JSON(playerArcadeList);
+					SERIALIZE_JSON(playerStoryList);
+					SERIALIZE_JSON(playerQuestList);
+				}
+			};
+
+			BuyArcadeResult buyArcadeResult;
+			
+			void Serialize(Json::Serializer& serializer) override
+			{
+				Protocol::Response::Serialize(serializer);
+				SERIALIZE_JSON(buyArcadeResult);
+			}
+			bool HandleRequest(const rapidjson::Value& action, player_id playerID) override;
+		};
+	}
+
+	// Messages to add
+	// buy_package
+	// change username
+	// clear_chaotic
+	// clear_episode
+	// clear_standard
+	// start_chaotic
+	// start_episode
+	// start_standard
+	// support level up
+	// achievment reward
+	// mail
+	// quest reward
+	// support buy
+	// get weekly rating
 }
