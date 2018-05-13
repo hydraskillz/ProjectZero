@@ -145,6 +145,21 @@ struct CMS_Guide : public Json::ISerializeable
 };
 struct CMS_Item : public Json::ISerializeable
 {
+	enum ItemTypeCodes
+	{
+		Item			= 1,
+		// ???
+		Gold			= 3,
+		StartCube		= 4,
+		Skin			= 5,
+		Supporter		= 6,
+		Designation		= 7,
+		DailyPresent	= 8,
+		// ???
+		// ???
+		StandardSong =	 11,
+	};
+
 	std::string ItemCode;
 	int ItemType;
 	std::string ItemName;
@@ -1030,5 +1045,33 @@ struct CMSData : public Json::ISerializeable
 		SERIALIZE_JSON(cms_WeeklyRankingReward);
 		SERIALIZE_JSON(cms_WeeklyRankingTier);
 		SERIALIZE_JSON(cms_LoadingTip);
+	}
+
+	const CMS_Mode_Story* FindStoryById(int storyId) const
+	{
+		const CMS_Mode_Story* story = nullptr;
+		for (const CMS_Mode_Story& itr : cms_Mode_Story)
+		{
+			if (itr.StoryNo == storyId)
+			{
+				story = &itr;
+				break;
+			}
+		}
+		return story;
+	}
+
+	const CMS_Item* FindItemById(const std::string& itemCode) const
+	{
+		const CMS_Item* item = nullptr;
+		for (const CMS_Item& itr : cms_Item)
+		{
+			if (itr.ItemCode == itemCode)
+			{
+				item = &itr;
+				break;
+			}
+		}
+		return item;
 	}
 };

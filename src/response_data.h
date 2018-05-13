@@ -45,15 +45,15 @@ struct PlayerData_ArcadeStage : public Json::ISerializeable
 {
 	int MusicNo;
 	std::string AddBy;
-	DateTime insertDate;
-	DateTime updateDate;
+	//DateTime insertDate;
+	//DateTime updateDate;
 
 	void Serialize(Json::Serializer& serializer) override
 	{
 		SERIALIZE_JSON(MusicNo);
 		SERIALIZE_JSON(AddBy);
-		SERIALIZE_JSON(insertDate);
-		SERIALIZE_JSON(updateDate);
+		//SERIALIZE_JSON(insertDate);
+		//SERIALIZE_JSON(updateDate);
 	}
 };
 

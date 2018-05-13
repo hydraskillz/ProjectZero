@@ -1,8 +1,6 @@
 #include "player_database.h"
-
-#include "player_info.h"
-#include "response_data.h"
-#include "item_and_shop_data.h"
+#include "server.h"
+#include "cms_data.h"
 #include "util.h"
 
 #include <map>
@@ -12,40 +10,68 @@
 static const int PLAYER_ID_BASELINE = 333000;
 static const int PLAYER_ID_STEP = 6;
 
-struct PlayerDataBlob : public Json::ISerializeable
-{
-	PlayerInfo playerInfo;
-	ResponseData playerState;
-	UserItemAndShop_Datainfo itemData;
-
-	void Serialize(Json::Serializer& serializer) override
-	{
-		SERIALIZE_JSON(playerInfo);
-		SERIALIZE_JSON(playerState);
-		SERIALIZE_JSON(itemData);
-	}
-};
-
 static std::map<player_id, PlayerDataBlob*> gPlayers;
 
 namespace
 {
-	PlayerDataBlob* FindPlayerDataBlob(player_id playerID)
-	{
-		PlayerDataBlob* blob = nullptr;
-		auto itr = gPlayers.find(playerID);
-		if (itr != gPlayers.end())
-		{
-			blob = itr->second;
-		}
-		return blob;
-	}
-
 	bool SavePlayerData(player_id id, PlayerDataBlob* data)
 	{
 		std::stringstream ss;
 		ss << "users/" << id << ".json";
 		return Json::WriteFile(ss.str().c_str(), *data);
+	}
+}
+
+void PlayerDataBlob::AddItem(const std::string& itemCode, int quantity)
+{
+	bool found = false;
+	for (Player_Item& itr : itemData.items)
+	{
+		if (itr.ItemCode == itemCode)
+		{
+			itr.Quantity += quantity;
+			found = true;
+		}
+	}
+
+	if (!found)
+	{
+		itemData.items.push_back(Player_Item(itemCode, quantity));
+	}
+
+	const CMS_Item* item = Server::GetCMSData().FindItemById(itemCode);
+	if (item)
+	{
+		switch (item->ItemType)
+		{
+			case CMS_Item::Gold:
+			{
+				playerInfo.gold += quantity;
+			}
+			break;
+
+			case CMS_Item::StartCube:
+			{
+				playerInfo.jewel += quantity;
+			}
+			break;
+
+			case CMS_Item::StandardSong:
+			{
+				PlayerData_ArcadeStage stage;
+
+				// How to know this?
+				stage.AddBy = "ByStory";
+				stage.MusicNo = 1;
+
+				playerState.playerData_ArcadeStage.push_back(stage);
+			}
+			break;
+
+			// TODO - handle special stuff for other item additions
+
+			default: break;
+		}
 	}
 }
 
@@ -111,6 +137,9 @@ player_id PlayerDB::CreateNewPlayer()
 		playerInfo.SupportByGoldTime = "0001-01-01T00:00:00"; // i.e. never
 		playerInfo.CreateDate = now;
 
+		// Starting gold
+		blob->AddItem("GOLD", 100);
+
 		ResponseData& playerState = blob->playerState;
 
 		// Default player flags - TODO: move to data file
@@ -133,7 +162,7 @@ player_id PlayerDB::CreateNewPlayer()
 		playerState.SetUserValue("ValueKey=Current_QuestID", 0, "Tutorial010");
 		playerState.SetUserValue("FingerTutor_Step", 1, "");
 		playerState.SetUserValue("FirstChapter_Order_No", 1, "");
-		playerState.SetUserValue("ValueKey=Language", 0, "KR");
+		playerState.SetUserValue("ValueKey=Language", 0, "EN");
 
 		// I don't know what this is for
 		playerState.playerData_Story.push_back(PlayerData_Story());
@@ -148,9 +177,6 @@ player_id PlayerDB::CreateNewPlayer()
 		itemData.support.push_back(Player_Support("ZCG01"));
 		itemData.support.push_back(Player_Support("ZCR01"));
 		itemData.support.push_back(Player_Support("ZCY01"));
-
-		// Add default items
-		itemData.items.push_back(Player_Item("GOLD", 100));
 
 		std::cout << "Created new player id=" << id << " name=" << playerInfo.name << std::endl;
 
@@ -171,6 +197,17 @@ player_id PlayerDB::CreateOrGetPlayer(player_id playerID)
 		return CreateNewPlayer();
 	}
 	return playerID;
+}
+
+PlayerDataBlob* PlayerDB::FindPlayerDataBlob(player_id playerID)
+{
+	PlayerDataBlob* blob = nullptr;
+	auto itr = gPlayers.find(playerID);
+	if (itr != gPlayers.end())
+	{
+		blob = itr->second;
+	}
+	return blob;
 }
 
 PlayerInfo* PlayerDB::GetPlayerInfo(player_id playerID)
@@ -204,6 +241,30 @@ UserItemAndShop_Datainfo* PlayerDB::GetUserItemAndShop_Datainfo(player_id player
 		itemData = &blob->itemData;
 	}
 	return itemData;
+}
+
+GameResult* PlayerDB::GetGameResult(player_id playerID, int musicNo, int patternNo)
+{
+	GameResult* result = nullptr;
+	PlayerDataBlob* blob = FindPlayerDataBlob(playerID);
+	if (blob)
+	{
+		for (GameResult& itr : blob->gameResults)
+		{
+			if (itr.musicNo == musicNo && itr.patternNo == patternNo)
+			{
+				result = &itr;
+				break;
+			}
+		}
+		// Add a new result for this music/pattern
+		if (result == nullptr)
+		{
+			blob->gameResults.push_back(GameResult());
+			result = &blob->gameResults.back();
+		}
+	}
+	return result;
 }
 
 void PlayerDB::SetPlayerFlag(player_id playerID, const std::string& key, int value)

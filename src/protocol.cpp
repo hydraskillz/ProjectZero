@@ -55,8 +55,13 @@ bool Protocol::GetPlayerInfo::Response::HandleRequest(const rapidjson::Value& ac
 
 bool Protocol::GetGameResult::Response::HandleRequest(const rapidjson::Value& action, player_id playerID)
 {
-	// TODO
-	return true;
+	PlayerDataBlob* playerData = PlayerDB::FindPlayerDataBlob(playerID);
+	if (playerData)
+	{
+		gameResults = playerData->gameResults;
+		return true;
+	}
+	return false;
 }
 
 bool Protocol::DoClearStandard::Response::HandleRequest(const rapidjson::Value& action, player_id playerID)
@@ -169,16 +174,22 @@ bool Protocol::DoStartStory::Response::HandleRequest(const rapidjson::Value& act
 	Request req;
 	DeserializeRequest(action, req);
 
-	// TODO: block it if they don't have it unlocked?
-
 	::PlayerInfo* playerInfo = PlayerDB::GetPlayerInfo(playerID);
 	UserItemAndShop_Datainfo* itemData = PlayerDB::GetUserItemAndShop_Datainfo(playerID);
 	if (playerInfo && itemData)
 	{
-		PlayerInfo = *playerInfo;
-		ItemList = itemData->items;
+		const int requestedStory = req.aparams.StoryNo;
+		// Block request if they don't have it unlocked
+		if (playerInfo->OpenStoryNo >= requestedStory)
+		{
+			// Track what story mission they are playing
+			playerInfo->currentStory = requestedStory;
 
-		return true;
+			PlayerInfo = *playerInfo;
+			ItemList = itemData->items;
+
+			return true;
+		}
 	}
 	return false;
 }
@@ -190,53 +201,107 @@ bool Protocol::DoClearStory::Response::HandleRequest(const rapidjson::Value& act
 
 	// TODO: block it if they don't have it unlocked?
 	// TODO: check if they even passed it?
-
-	::PlayerInfo* playerInfo = PlayerDB::GetPlayerInfo(playerID);
-	UserItemAndShop_Datainfo* itemData = PlayerDB::GetUserItemAndShop_Datainfo(playerID);
-	::ResponseData* playerState = PlayerDB::GetPlayerState(playerID);
+	PlayerDataBlob* playerData = PlayerDB::FindPlayerDataBlob(playerID);
 	bool success = false;
-	if (playerInfo && itemData && playerState)
+	if (playerData)
 	{
-		success = true;
-
-		itemData->items.push_back(Player_Item("GOLD", 500));
-		itemData->items.push_back(Player_Item("StarCube", 100));
-
-		playerInfo->gold += 500;
-		playerInfo->jewel += 100;
-
-		// Advance the tutorial once the first story mission is done
-		if (playerInfo->TutorialNo < 1)
+		const CMSData& cmsData = Server::GetCMSData();
+		const CMS_Mode_Story* story = cmsData.FindStoryById(playerData->playerInfo.currentStory);
+		// Make sure we actually were on a story
+		if (story)
 		{
-			playerInfo->TutorialNo = 1;
+			success = true;
+
+			const GameResult& result = req.aparams.result;
+			// Cleared it
+			if (result.isCleared)
+			{
+				// Advance unlocked story
+				if (story->StoryNo > playerData->playerInfo.ClearStoryNo)
+				{
+					playerData->playerInfo.ClearStoryNo = story->StoryNo;
+				}
+
+				// Advance the tutorial once the first story mission is done
+				if (playerData->playerInfo.TutorialNo < 1)
+				{
+					playerData->playerInfo.TutorialNo = 1;
+				}
+
+				// Something wrong or cheating
+				if (result.musicNo != story->MusicNo)
+				{
+					return false;
+				}
+
+				// Update game results
+				GameResult* currentResult = PlayerDB::GetGameResult(playerID, result.musicNo, result.patternNo);
+				if (currentResult)
+				{
+					currentResult->isCleared = true;
+					currentResult->playCount++;
+
+					if (result.score > currentResult->score)
+					{
+						currentResult->score = result.score;
+					}
+
+					// TODO - assign other stuff like medals and grades
+				}
+
+				// TODO: Compute rewards
+
+				// Do something for rewards
+				// Idea: Better rewards if higher grade/metals?
+				// Idea: Supports give special rewards?
+
+				playerData->AddItem("GOLD", 500);
+				playerData->AddItem("StarCube", 10);
+
+				ResultRewards.BasicRewards.push_back(RewardItem("GOLD", 500));
+				ResultRewards.SupportRewards.push_back(RewardItem("StarCube", 10));
+
+				// TODO  - Calculate LP reward
+				//
+				playerData->playerInfo.exp += 10000;
+
+				// Handle level up
+				for (const CMS_UserLevel& levelData : cmsData.cms_UserLevel)
+				{
+					if (levelData.Level > playerData->playerInfo.level && playerData->playerInfo.exp >= levelData.TotalNeedExp)
+					{
+						playerData->playerInfo.level = levelData.Level;
+
+						playerData->AddItem(levelData.RewardItemCode, levelData.RewardItemCount);
+						ResultRewards.BasicRewards.push_back(RewardItem(levelData.RewardItemCode, levelData.RewardItemCount));
+					}
+				}
+
+				// TODO: Roll for support get
+				//
+				isGetSuppoterCard = false; // Nothing for now...
+
+				// Save player data
+				PlayerDB::SaveAllPlayerData();
+
+				// Assign results
+				PlayerInfo = playerData->playerInfo;
+
+				// Full sync on items, achievs, quest, stages, supports
+				ItemList = playerData->itemData.items;
+				PlayerAchievement = playerData->playerState.player_Achievement;
+				PlayerQuest = playerData->playerState.player_Quest;
+				StageList = playerData->playerState.playerData_ArcadeStage;
+				SupportList = playerData->itemData.support;
+
+				// Better send the whole item list twice
+				ResponseData.items = playerData->itemData.items;
+				// What even is this
+				ResponseData.player_MetaResult_SavePeople = playerData->playerState.player_MetaResult_SavePeople;
+				// Send all the quest again because why not
+				ResponseData.player_Quest = playerData->playerState.player_Quest;
+			}
 		}
-
-		// TODO: Compute rewards
-		// 
-		ResultRewards.BasicRewards.push_back(RewardItem("GOLD", 500));
-		ResultRewards.SupportRewards.push_back(RewardItem("StarCube", 100));
-
-		// TODO: Roll for support get
-		//
-		isGetSuppoterCard = false; // Nothing for now...
-
-		PlayerDB::SaveAllPlayerData();
-
-		PlayerInfo = *playerInfo;
-
-		// Full sync on items, achievs, quest, stages, supports
-		ItemList = itemData->items;
-		PlayerAchievement = playerState->player_Achievement;
-		PlayerQuest = playerState->player_Quest;
-		StageList = playerState->playerData_ArcadeStage;
-		SupportList = itemData->support;
-
-		// Better send the whole item list twice
-		ResponseData.items = itemData->items;
-		// What even is this
-		ResponseData.player_MetaResult_SavePeople = playerState->player_MetaResult_SavePeople;
-		// Send all the quest again because why not
-		ResponseData.player_Quest = playerState->player_Quest;
 	}
 
 	return success;

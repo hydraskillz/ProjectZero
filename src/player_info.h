@@ -6,9 +6,9 @@
 struct PlayerInfo : public Json::ISerializeable
 {
 	std::string name;				// Player name
-	std::string Language;			// unused
+	std::string Language = "EN";	// unused
 	int jewel = 0;					// star cubes
-	int gold = 100;					// gold. you start with 100
+	int gold = 0;					// gold
 	int level = 0;					// level/rank
 	int exp = 0;					// experience
 	int OpenStoryNo = 1;			// the current number of story missions?
@@ -22,6 +22,9 @@ struct PlayerInfo : public Json::ISerializeable
 	DateTime LastActionDate;		// last login
 	DateTime SupportByGoldTime;		// last time you bought a support with gold?
 	DateTime CreateDate;			// when your accout was created
+
+	// Non-serialized values
+	int currentStory = -1;			// The story mission they are playing
 
 	void Serialize(Json::Serializer& serializer) override
 	{
