@@ -24,24 +24,27 @@ namespace
 
 void PlayerDataBlob::AddItem(const std::string& itemCode, int quantity)
 {
-	bool found = false;
-	for (Player_Item& itr : itemData.items)
-	{
-		if (itr.ItemCode == itemCode)
-		{
-			itr.Quantity += quantity;
-			found = true;
-		}
-	}
-
-	if (!found)
-	{
-		itemData.items.push_back(Player_Item(itemCode, quantity));
-	}
-
 	const CMS_Item* item = Server::GetCMSData().FindDataByKey<CMS_Item>(itemCode);
 	if (item)
 	{
+		if (item->IsInventoryItem())
+		{
+			bool found = false;
+			for (Player_Item& itr : itemData.items)
+			{
+				if (itr.ItemCode == itemCode)
+				{
+					itr.Quantity += quantity;
+					found = true;
+				}
+			}
+
+			if (!found)
+			{
+				itemData.items.push_back(Player_Item(itemCode, quantity));
+			}
+		}
+
 		switch (item->ItemType)
 		{
 			case CMS_Item::Gold:
@@ -59,12 +62,60 @@ void PlayerDataBlob::AddItem(const std::string& itemCode, int quantity)
 			case CMS_Item::StandardSong:
 			{
 				PlayerData_ArcadeStage stage;
-
-				// How to know this?
-				stage.AddBy = "ByStory";
-				stage.MusicNo = 1;
-
+				stage.MusicNo = std::atoi(item->ItemName.c_str());
 				playerState.playerData_ArcadeStage.push_back(stage);
+			}
+			break;
+
+			// TODO - handle special stuff for other item additions
+
+			default: break;
+		}
+	}
+}
+
+void PlayerDataBlob::RemoveItem(const std::string& itemCode, int quantity)
+{
+	const CMS_Item* item = Server::GetCMSData().FindDataByKey<CMS_Item>(itemCode);
+	if (item)
+	{
+		if (item->IsInventoryItem())
+		{
+			bool found = false;
+			for (Player_Item& itr : itemData.items)
+			{
+				if (itr.ItemCode == itemCode)
+				{
+					// Remove as many as we can
+					itr.Quantity -= quantity;
+					if (itr.Quantity < 0)
+					{
+						itr.Quantity = 0;
+					}
+					found = true;
+				}
+			}
+		}
+
+		switch (item->ItemType)
+		{
+			case CMS_Item::Gold:
+			{
+				playerInfo.gold -= quantity;
+				if (playerInfo.gold < 0)
+				{
+					playerInfo.gold = 0;
+				}
+			}
+			break;
+
+			case CMS_Item::StartCube:
+			{
+				playerInfo.jewel -= quantity;
+				if (playerInfo.jewel < 0)
+				{
+					playerInfo.jewel = 0;
+				}
 			}
 			break;
 
@@ -138,7 +189,7 @@ player_id PlayerDB::CreateNewPlayer()
 		playerInfo.CreateDate = now;
 
 		// Starting gold
-		blob->AddItem("GOLD", 100);
+		blob->AddItem(CMSData::ItemConstants::Gold, 100);
 
 		ResponseData& playerState = blob->playerState;
 

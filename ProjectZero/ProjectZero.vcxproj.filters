@@ -30,5 +30,6 @@
     <ClCompile Include="..\src\player_database.cpp" />
     <ClCompile Include="..\src\util.cpp" />
     <ClCompile Include="..\src\cs_bridge.cpp" />
+    <ClCompile Include="..\src\cms_data.cpp" />
   </ItemGroup>
 </Project>

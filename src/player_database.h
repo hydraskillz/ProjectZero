@@ -24,6 +24,7 @@ struct PlayerDataBlob : public Json::ISerializeable
 	}
 
 	void AddItem(const std::string& itemCode, int quantity);
+	void RemoveItem(const std::string& itemCode, int quantity);
 };
 
 namespace PlayerDB

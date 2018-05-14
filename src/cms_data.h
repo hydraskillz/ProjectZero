@@ -157,10 +157,16 @@ struct CMS_Item : public Json::ISerializeable
 		Supporter		= 6,
 		Designation		= 7,
 		DailyPresent	= 8,
-		// ???
-		// ???
-		StandardSong =	 11,
+		// unused
+		StoreKey		= 10,
+		StandardSong	= 11,
 	};
+
+	// Returns true if this item should go in the inventory list
+	bool IsInventoryItem() const
+	{
+		return ItemType == Item || ItemType == Skin;
+	}
 
 	std::string ItemCode;
 	int ItemType;
@@ -234,6 +240,8 @@ struct CMS_LaneNoteType : public Json::ISerializeable
 };
 struct CMS_MasterValue : public Json::ISerializeable
 {
+	const std::string& GetSearchKey() const { return KeyCode; }
+
 	std::string KeyCode;
 	std::string Value;
 	int IntValue;
@@ -639,6 +647,8 @@ struct CMS_Quest : public Json::ISerializeable
 };
 struct CMS_Shop_BuyGold : public Json::ISerializeable
 {
+	int GetSearchKey() const { return Step; }
+
 	int Step;
 	int MusicGold;
 	int SupportGold;
@@ -965,6 +975,12 @@ struct CMS_LoadingTip : public Json::ISerializeable
 
 struct CMSData : public Json::ISerializeable
 {
+	struct ItemConstants
+	{
+		static const std::string Gold;
+		static const std::string StarCube;
+	};
+
 	bool isUpdate = false;
 	std::vector<CMS_Achievement> cms_Achievement;
 	std::vector<CMS_AchievementReward> cms_AchievementReward;
@@ -1052,6 +1068,11 @@ struct CMSData : public Json::ISerializeable
 		SERIALIZE_JSON(cms_LoadingTip);
 	}
 
+	int GetMaxShopByGoldCount() const
+	{
+		return static_cast<int>(cms_Shop_BuyGold.size());
+	}
+
 	template<typename TCMS_DATA>
 	const std::vector<TCMS_DATA>& GetContainerByType() const;
 
@@ -1072,9 +1093,14 @@ struct CMSData : public Json::ISerializeable
 	}
 };
 
-template<>
-inline const std::vector<CMS_Mode_Story>& CMSData::GetContainerByType() const { return cms_Mode_Story; }
-template<>
-inline const std::vector<CMS_Item>& CMSData::GetContainerByType() const { return cms_Item; }
-template<>
-inline const std::vector<CMS_Music>& CMSData::GetContainerByType() const { return cms_Music; }
+#define CMS_CONTAINER_GETTER(NAME)																		\
+template<>																								\
+inline const std::vector<CMS_ ## NAME>& CMSData::GetContainerByType() const { return cms_ ## NAME; }
+
+CMS_CONTAINER_GETTER(Mode_Story);
+CMS_CONTAINER_GETTER(Item);
+CMS_CONTAINER_GETTER(Music);
+CMS_CONTAINER_GETTER(Shop_BuyGold);
+CMS_CONTAINER_GETTER(MasterValue);
+
+#undef CMS_CONTAINER_GETTER

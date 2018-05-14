@@ -255,11 +255,11 @@ bool Protocol::DoClearStory::Response::HandleRequest(const rapidjson::Value& act
 				// Idea: Better rewards if higher grade/metals?
 				// Idea: Supports give special rewards?
 
-				playerData->AddItem("GOLD", 500);
-				playerData->AddItem("StarCube", 10);
+				playerData->AddItem(CMSData::ItemConstants::Gold, 500);
+				playerData->AddItem(CMSData::ItemConstants::StarCube, 10);
 
-				ResultRewards.BasicRewards.push_back(RewardItem("GOLD", 500));
-				ResultRewards.SupportRewards.push_back(RewardItem("StarCube", 10));
+				ResultRewards.BasicRewards.push_back(RewardItem(CMSData::ItemConstants::Gold, 500));
+				ResultRewards.SupportRewards.push_back(RewardItem(CMSData::ItemConstants::StarCube, 10));
 
 				// TODO  - Calculate LP reward
 				//
@@ -309,34 +309,53 @@ bool Protocol::DoClearStory::Response::HandleRequest(const rapidjson::Value& act
 
 bool Protocol::BuyArcade::Response::HandleRequest(const rapidjson::Value& action, player_id playerID)
 {
-	bool success = false;
 	PlayerDataBlob* playerData = PlayerDB::FindPlayerDataBlob(playerID);
 	if (playerData)
 	{
 		Request req;
 		DeserializeRequest(action, req);
 
+		bool isValidPurchase = false;
 		// Find the stage they want to buy
 		const CMS_Music* music = Server::GetCMSData().FindDataByKey<CMS_Music>(req.aparams.arcadeStageNo);
 		if (music)
 		{
-			bool isValidPurchase = false;
-			if (req.aparams.buyWay == "GOLD")
+			if (req.aparams.buyWay == CMSData::ItemConstants::Gold)
 			{
-				// TODO - take gold
-				isValidPurchase = true;
+				const CMS_Shop_BuyGold* shopBuyGold = Server::GetCMSData().FindDataByKey<CMS_Shop_BuyGold>(playerData->playerInfo.MusicByGoldCount + 1);
+				const int cost = shopBuyGold ? shopBuyGold->MusicGold : 500000; // The client code would probably crash if the step exceed
+				if (playerData->playerInfo.gold >= cost)
+				{
+					// Remove gold
+					playerData->RemoveItem(CMSData::ItemConstants::Gold, cost);
+
+					// Increment the music by gold count
+					const int maxCount = Server::GetCMSData().GetMaxShopByGoldCount();
+					playerData->playerInfo.MusicByGoldCount++;
+					if (playerData->playerInfo.MusicByGoldCount > maxCount)
+					{
+						playerData->playerInfo.MusicByGoldCount = maxCount;
+					}
+
+					isValidPurchase = true;
+				}
 			}
-			else if (req.aparams.buyWay == "STAR_CUBE")
+			else if (req.aparams.buyWay == CMSData::ItemConstants::StarCube)
 			{
-				// TODO - take star cubes
-				isValidPurchase = true;
+				const CMS_MasterValue* masterValue = Server::GetCMSData().FindDataByKey<CMS_MasterValue>("STANDARD_MUSIC_STARCUBE_PRICE");
+				const int cost = masterValue ? masterValue->IntValue : 0; // If the price isn't set consider it free
+				if (playerData->playerInfo.jewel >= cost)
+				{
+					// Remove jewels
+					playerData->RemoveItem(CMSData::ItemConstants::StarCube, cost);
+
+					isValidPurchase = true;
+				}
 			}
 			// can tickets buys songs?
 
 			if (isValidPurchase)
 			{
-				success = true;
-
 				// Advance the tutorial once the first song is purchased
 				if (playerData->playerInfo.TutorialNo < 2)
 				{
@@ -345,23 +364,25 @@ bool Protocol::BuyArcade::Response::HandleRequest(const rapidjson::Value& action
 
 				// add song
 				PlayerData_ArcadeStage song;
-				song.AddBy = "GOLD"; // idk if settings this correctly matters at all
 				song.MusicNo = music->MusicNo;
 				playerData->playerState.playerData_ArcadeStage.push_back(song);
 
 				// Save
 				PlayerDB::SavePlayerData(playerID);
-
-				// Setup respone data
-				buyArcadeResult.isValidRequest = true;
-				buyArcadeResult.playerInfo = playerData->playerInfo;
-				buyArcadeResult.userValueList = playerData->playerState.player_UserValue;
-				buyArcadeResult.items = playerData->itemData.items;
-				buyArcadeResult.playerArcadeList = playerData->playerState.playerData_ArcadeStage;
-				buyArcadeResult.playerStoryList = playerData->playerState.playerData_Story;
-				buyArcadeResult.playerQuestList = playerData->playerState.player_Quest;
 			}
 		}
+
+		// Setup respone data
+		buyArcadeResult.isValidRequest = isValidPurchase;
+		if (isValidPurchase) // Don't both with other stuff if request is invalid
+		{
+			buyArcadeResult.playerInfo = playerData->playerInfo;
+			buyArcadeResult.userValueList = playerData->playerState.player_UserValue;
+			buyArcadeResult.items = playerData->itemData.items;
+			buyArcadeResult.playerArcadeList = playerData->playerState.playerData_ArcadeStage;
+			buyArcadeResult.playerStoryList = playerData->playerState.playerData_Story;
+			buyArcadeResult.playerQuestList = playerData->playerState.player_Quest;
+		}
 	}
-	return success;
+	return true;
 }
