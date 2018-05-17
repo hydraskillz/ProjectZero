@@ -21,10 +21,13 @@ struct PlayerDataBlob : public Json::ISerializeable
 		SERIALIZE_JSON(playerInfo);
 		SERIALIZE_JSON(playerState);
 		SERIALIZE_JSON(itemData);
+		SERIALIZE_JSON(gameResults);
 	}
 
 	void AddItem(const std::string& itemCode, int quantity);
 	void RemoveItem(const std::string& itemCode, int quantity);
+	int GetPackagePrice(const std::string& packageCode, int basePrice) const;
+	void AddPackage(const std::string& packageCode);
 };
 
 namespace PlayerDB

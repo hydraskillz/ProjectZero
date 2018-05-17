@@ -920,8 +920,65 @@ namespace Protocol
 		};
 	}
 
+	namespace BuyPackage
+	{
+		constexpr const char* ID = "buy_package";
+
+		struct Aparams : public Json::ISerializeable
+		{
+			std::string ProductID;
+			std::string BuyType;
+
+			void Serialize(Json::Serializer& serializer) override
+			{
+				SERIALIZE_JSON(ProductID);
+				SERIALIZE_JSON(BuyType);
+			}
+		};
+
+		struct Request : Protocol::Request
+		{
+			const char* GetID() const override { return ID; }
+
+			Aparams aparams;
+
+			void Serialize(Json::Serializer& serializer) override
+			{
+				Protocol::Request::Serialize(serializer);
+				SERIALIZE_JSON(aparams);
+			}
+		};
+
+		struct Response : Protocol::Response
+		{
+			const char* GetID() const override { return ID; }
+
+			struct BuyPackageResult : public Json::ISerializeable
+			{
+				PlayerInfo playerInfo;
+				std::vector<PlayerData_ArcadeStage> playerArcadeList;
+
+				void Serialize(Json::Serializer& serializer) override
+				{
+					SERIALIZE_JSON(playerInfo);
+					SERIALIZE_JSON(playerArcadeList);
+				}
+			};
+
+			int isBuySuccess;
+			BuyPackageResult responseData;
+
+			void Serialize(Json::Serializer& serializer) override
+			{
+				Protocol::Response::Serialize(serializer);
+				SERIALIZE_JSON(isBuySuccess);
+				SERIALIZE_JSON(responseData);
+			}
+			bool HandleRequest(const rapidjson::Value& action, player_id playerID) override;
+		};
+	}
+
 	// Messages to add
-	// buy_package
 	// change username
 	// clear_chaotic
 	// clear_episode

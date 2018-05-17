@@ -386,3 +386,43 @@ bool Protocol::BuyArcade::Response::HandleRequest(const rapidjson::Value& action
 	}
 	return true;
 }
+
+bool Protocol::BuyPackage::Response::HandleRequest(const rapidjson::Value& action, player_id playerID)
+{
+	PlayerDataBlob* playerData = PlayerDB::FindPlayerDataBlob(playerID);
+	if (playerData)
+	{
+		Request req;
+		DeserializeRequest(action, req);
+
+		isBuySuccess = 0;
+		if (!playerData->itemData.HasPackage(req.aparams.ProductID))
+		{
+			const CMS_Shop_Package* package = Server::GetCMSData().FindDataByKey<CMS_Shop_Package>(req.aparams.ProductID);
+			if (package)
+			{
+				if (req.aparams.BuyType == CMSData::ItemConstants::StarCube)
+				{
+					const int price = playerData->GetPackagePrice(package->PackageCode, package->Price_Now);
+					if (playerData->playerInfo.jewel >= price)
+					{
+						playerData->RemoveItem(CMSData::ItemConstants::StarCube, price);
+						playerData->AddPackage(package->PackageCode);
+						isBuySuccess = 1;
+					}
+				}
+				else if (req.aparams.BuyType == CMSData::ItemConstants::Ticket)
+				{
+					// TODO - buy with ticket
+				}
+			}
+		}
+
+		if (isBuySuccess)
+		{
+			responseData.playerInfo = playerData->playerInfo;
+			responseData.playerArcadeList = playerData->playerState.playerData_ArcadeStage;
+		}
+	}
+	return true;
+}

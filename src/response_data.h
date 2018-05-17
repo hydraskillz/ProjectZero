@@ -42,6 +42,12 @@ struct Player_UserValue : public Json::ISerializeable
 
 struct PlayerData_ArcadeStage : public Json::ISerializeable
 {
+	PlayerData_ArcadeStage(int musicNo = 0)
+		: MusicNo(musicNo)
+	{}
+
+	bool operator==(const PlayerData_ArcadeStage& rhs) const { return rhs.MusicNo == MusicNo; }
+
 	int MusicNo;
 
 	void Serialize(Json::Serializer& serializer) override
@@ -196,21 +202,26 @@ struct ResponseData : public Json::ISerializeable
 		}
 	}
 
+	bool HasArcadeStage(int musicNo) const
+	{
+		return std::find(playerData_ArcadeStage.begin(), playerData_ArcadeStage.end(), musicNo) != playerData_ArcadeStage.end();
+	}
+
 	void Serialize(Json::Serializer& serializer) override
 	{
-		SERIALIZE_JSON(player_Flag);
-		SERIALIZE_JSON(player_UserValue);
-		SERIALIZE_JSON(playerData_ArcadeStage);
-		SERIALIZE_JSON(playerData_Story);
-		SERIALIZE_JSON(player_Quest);
-		SERIALIZE_JSON(player_Achievement);
-		SERIALIZE_JSON(player_AchievementReward);
-		SERIALIZE_JSON(noticeMessage);
-		SERIALIZE_JSON(player_ChaoticMission);
-		SERIALIZE_JSON(player_ChaoticStage);
-		SERIALIZE_JSON(player_Episode);
-		SERIALIZE_JSON(player_MetaResult_SavePeople);
-		SERIALIZE_JSON(player_Statistics);
+		SERIALIZE_JSON_IF_NOT_EMPTY(player_Flag);
+		SERIALIZE_JSON_IF_NOT_EMPTY(player_UserValue);
+		SERIALIZE_JSON_IF_NOT_EMPTY(playerData_ArcadeStage);
+		SERIALIZE_JSON_IF_NOT_EMPTY(playerData_Story);
+		SERIALIZE_JSON_IF_NOT_EMPTY(player_Quest);
+		SERIALIZE_JSON_IF_NOT_EMPTY(player_Achievement);
+		SERIALIZE_JSON_IF_NOT_EMPTY(player_AchievementReward);
+		SERIALIZE_JSON_IF_NOT_EMPTY(noticeMessage);
+		SERIALIZE_JSON_IF_NOT_EMPTY(player_ChaoticMission);
+		SERIALIZE_JSON_IF_NOT_EMPTY(player_ChaoticStage);
+		SERIALIZE_JSON_IF_NOT_EMPTY(player_Episode);
+		SERIALIZE_JSON_IF_NOT_EMPTY(player_MetaResult_SavePeople);
+		SERIALIZE_JSON_IF_NOT_EMPTY(player_Statistics);
 	}
 };
 

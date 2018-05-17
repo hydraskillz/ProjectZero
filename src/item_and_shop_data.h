@@ -68,4 +68,18 @@ struct UserItemAndShop_Datainfo : public Json::ISerializeable
 		SERIALIZE_JSON(items);
 		SERIALIZE_JSON(support);
 	}
+
+	bool HasPackage(const std::string& packageCode) const
+	{
+		bool has = false;
+		for (const PlayerData_Shop_Package& package : shopPackages)
+		{
+			if (package.PackageCode == packageCode)
+			{
+				has = true;
+				break;
+			}
+		}
+		return has;
+	}
 };

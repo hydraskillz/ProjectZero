@@ -63,7 +63,10 @@ void PlayerDataBlob::AddItem(const std::string& itemCode, int quantity)
 			{
 				PlayerData_ArcadeStage stage;
 				stage.MusicNo = std::atoi(item->ItemName.c_str());
-				playerState.playerData_ArcadeStage.push_back(stage);
+				if (!playerState.HasArcadeStage(stage.MusicNo))
+				{
+					playerState.playerData_ArcadeStage.push_back(stage);
+				}
 			}
 			break;
 
@@ -122,6 +125,51 @@ void PlayerDataBlob::RemoveItem(const std::string& itemCode, int quantity)
 			// TODO - handle special stuff for other item additions
 
 			default: break;
+		}
+	}
+}
+
+// Reduce the price if we own items within the package
+int PlayerDataBlob::GetPackagePrice(const std::string& packageCode, int basePrice) const
+{
+	int price = basePrice;
+	const CMSData& cmsData = Server::GetCMSData();
+	auto itr = cmsData.shopPackageDetailLists.find(packageCode);
+	if (itr != cmsData.shopPackageDetailLists.end())
+	{
+		const std::vector<std::reference_wrapper<CMS_Shop_PackageDetail>>& details = itr->second;
+		if (!details.empty())
+		{
+			int x = basePrice / details.size();
+			int y = 0;
+			for (const auto& detail : details)
+			{
+				if (!playerState.HasArcadeStage(detail.get().MusicNo))
+				{
+					++y;
+				}
+			}
+			price -= x * y;
+		}
+	}
+	return price;
+}
+
+void PlayerDataBlob::AddPackage(const std::string& packageCode)
+{
+	const CMSData& cmsData = Server::GetCMSData();
+	auto itr = cmsData.shopPackageDetailLists.find(packageCode);
+	if (itr != cmsData.shopPackageDetailLists.end())
+	{
+		const std::vector<std::reference_wrapper<CMS_Shop_PackageDetail>>& details = itr->second;
+		for (const auto& detail : details)
+		{
+			if (!playerState.HasArcadeStage(detail.get().MusicNo))
+			{
+				PlayerData_ArcadeStage stage;
+				stage.MusicNo = detail.get().MusicNo;
+				playerState.playerData_ArcadeStage.push_back(stage);
+			}
 		}
 	}
 }

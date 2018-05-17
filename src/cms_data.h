@@ -3,6 +3,8 @@
 #include "json.h"
 #include "date_time.h"
 
+#include <map>
+
 //
 // This is basically a 1 to 1 encoding of the CMS data
 //
@@ -662,6 +664,15 @@ struct CMS_Shop_BuyGold : public Json::ISerializeable
 };
 struct CMS_Shop_Package : public Json::ISerializeable
 {
+	const std::string& GetSearchKey() const { return PackageCode; }
+
+	enum PriceTypeCodes
+	{
+		// ???
+		// ???
+		// ???
+	};
+
 	std::string PackageCode;
 	int PackageType;
 	std::string PackageText_Eng;
@@ -703,6 +714,8 @@ struct CMS_Shop_Package : public Json::ISerializeable
 };
 struct CMS_Shop_PackageDetail : public Json::ISerializeable
 {
+	const std::string& GetSearchKey() const { return PackageCode; }
+
 	std::string PackageCode;
 	int PackageCodeRow;
 	int IsArcade;
@@ -979,6 +992,7 @@ struct CMSData : public Json::ISerializeable
 	{
 		static const std::string Gold;
 		static const std::string StarCube;
+		static const std::string Ticket;
 	};
 
 	bool isUpdate = false;
@@ -1023,8 +1037,15 @@ struct CMSData : public Json::ISerializeable
 	std::vector<CMS_WeeklyRankingTier> cms_WeeklyRankingTier;
 	std::vector<CMS_LoadingTip> cms_LoadingTip;
 
+	std::map<std::string, std::vector<std::reference_wrapper<CMS_Shop_PackageDetail>>> shopPackageDetailLists;
+
 	void Serialize(Json::Serializer& serializer) override
 	{
+		if (!serializer.IsWriting())
+		{
+			shopPackageDetailLists.clear();
+		}
+
 		SERIALIZE_JSON(isUpdate);
 		SERIALIZE_JSON(cms_Achievement);
 		SERIALIZE_JSON(cms_AchievementReward);
@@ -1066,6 +1087,14 @@ struct CMSData : public Json::ISerializeable
 		SERIALIZE_JSON(cms_WeeklyRankingReward);
 		SERIALIZE_JSON(cms_WeeklyRankingTier);
 		SERIALIZE_JSON(cms_LoadingTip);
+
+		if (!serializer.IsWriting())
+		{
+			for (CMS_Shop_PackageDetail& packageDetail : cms_Shop_PackageDetail)
+			{
+				shopPackageDetailLists[packageDetail.PackageCode].push_back(packageDetail);
+			}
+		}
 	}
 
 	int GetMaxShopByGoldCount() const
@@ -1102,5 +1131,7 @@ CMS_CONTAINER_GETTER(Item);
 CMS_CONTAINER_GETTER(Music);
 CMS_CONTAINER_GETTER(Shop_BuyGold);
 CMS_CONTAINER_GETTER(MasterValue);
+CMS_CONTAINER_GETTER(Shop_Package);
+CMS_CONTAINER_GETTER(Shop_PackageDetail);
 
 #undef CMS_CONTAINER_GETTER
