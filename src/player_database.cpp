@@ -174,6 +174,215 @@ void PlayerDataBlob::AddPackage(const std::string& packageCode)
 	}
 }
 
+void PlayerDataBlob::AddXP(int amount, std::vector<RewardItem>& rewards)
+{
+	playerInfo.exp += amount;
+
+	// Handle level up
+	const CMSData& cmsData = Server::GetCMSData();
+	for (const CMS_UserLevel& levelData : cmsData.cms_UserLevel)
+	{
+		if (levelData.Level > playerInfo.level && playerInfo.exp >= levelData.TotalNeedExp)
+		{
+			playerInfo.level = levelData.Level;
+
+			AddItem(levelData.RewardItemCode, levelData.RewardItemCount);
+			rewards.push_back(RewardItem(levelData.RewardItemCode, levelData.RewardItemCount));
+		}
+	}
+}
+
+// Update the achievement points. will need to call after each acievement unlock
+void PlayerDataBlob::RefreshAchievementPoints()
+{
+	const CMSData& cmsData = Server::GetCMSData();
+	for (const Player_Achievement& achiev : playerState.player_Achievement)
+	{
+		if (achiev.IsClear)
+		{
+			const CMS_Achievement* achievData = cmsData.FindDataByKey<CMS_Achievement>(achiev.AchievementId);
+			if (achievData)
+			{
+				AchievementPoints += achievData->AchievementScore;
+			}
+		}
+	}
+}
+
+int PlayerDataBlob::GetSupportPower(const std::string& supportID) const
+{
+	int power = 0;
+	for (const Player_Support& support : itemData.support)
+	{
+		if (support.SupportID == supportID)
+		{
+			const CMSData& cmsData = Server::GetCMSData();
+			power = cmsData.GetSupportPower(support.SupportID, support.Level);
+		}
+	}
+	return power;
+}
+
+float PlayerDataBlob::GetTitleSupportBonus() const
+{
+	// TODO - get bonus from equipped title
+	return 0.0f;
+}
+
+int PlayerDataBlob::GetLPForSong(int musicNo) const
+{
+	int LP = 0;
+	for (const Player_MetaResult_SavePeople& res : playerState.player_MetaResult_SavePeople)
+	{
+		if (res.ArcadeStageNo == musicNo)
+		{
+			LP = res.SavePeopleCount;
+		}
+	}
+	return LP;
+}
+
+void PlayerDataBlob::SetLPForSong(int musicNo, int LP)
+{
+	bool found = false;
+	for (Player_MetaResult_SavePeople& res : playerState.player_MetaResult_SavePeople)
+	{
+		if (res.ArcadeStageNo == musicNo)
+		{
+			res.SavePeopleCount = LP;
+			found = true;
+			break;
+		}
+	}
+	if (!found)
+	{
+		Player_MetaResult_SavePeople res;
+		res.ArcadeStageNo = musicNo;
+		res.SavePeopleCount = LP;
+		playerState.player_MetaResult_SavePeople.push_back(res);
+	}
+}
+
+GameResult* PlayerDataBlob::GetGameResult(int musicNo, int patternNo)
+{
+	GameResult* result = nullptr;
+	for (GameResult& itr : gameResults)
+	{
+		if (itr.musicNo == musicNo && itr.patternNo == patternNo)
+		{
+			result = &itr;
+			break;
+		}
+	}
+	// Add a new result for this music/pattern
+	if (result == nullptr)
+	{
+		gameResults.push_back(GameResult());
+		result = &gameResults.back();
+	}
+	return result;
+}
+
+bool PlayerDataBlob::DoClear(const GameResult& result, ResultRewards& rewards)
+{
+	// Update game results
+	GameResult* currentResult = GetGameResult(result.musicNo, result.patternNo);
+	if (!currentResult)
+	{
+		return false;
+	}
+
+	const CMSData& cmsData = Server::GetCMSData();
+
+	const bool isFirstTimeCleared = !currentResult->isCleared;
+	currentResult->isCleared = true;
+	currentResult->playCount++;
+
+	// TODO - verify the stuff here looks legit
+	if (result.score > currentResult->score)
+	{
+		currentResult->score = result.score;
+		currentResult->maxCombo = result.maxCombo;
+		currentResult->judgeTable = result.judgeTable;
+		currentResult->enemyBreakCount = result.enemyBreakCount;
+		currentResult->rating = result.rating;
+		currentResult->enemyRating = result.enemyRating;
+		// Just give out the medals for now
+		for (size_t i = 0; i < result.acquiredMedalIds.size(); ++i)
+		{
+			if (result.acquiredMedalIds[i])
+			{
+				currentResult->acquiredMedalIds[i] = 1;
+			}
+		}
+	}
+
+	// Calc LP
+	const CMS_Music_Pattern* pattern = cmsData.GetMusicPattern(result.musicNo, result.patternNo);
+	// Bad/missing data?
+	if (!pattern)
+	{
+		return false;
+	}
+	const CMS_Support_StageSet* supportStageSet = cmsData.FindDataByKey<CMS_Support_StageSet>(result.musicNo);
+	if (!supportStageSet)
+	{
+		return false;
+	}
+
+	const int rankLP = result.GetLPFromRank();
+	const int levelLP = pattern->Level * 50;
+	const int achievLP = AchievementPoints * 10;
+
+	int supportPower = 0;
+	supportPower += GetSupportPower(supportStageSet->Left);
+	supportPower += GetSupportPower(supportStageSet->LeftMid);
+	supportPower += GetSupportPower(supportStageSet->Right);
+	supportPower += GetSupportPower(supportStageSet->RightMid);
+	supportPower = static_cast<int>(std::ceil(supportPower / 10.0f)); // round up
+	const int supportLP = supportPower;
+
+	const int titleBonus = static_cast<int>(GetTitleSupportBonus() * supportPower);
+
+	const int LP = rankLP + levelLP + achievLP + supportLP + titleBonus;
+	const int currentLP = GetLPForSong(result.musicNo);
+	const int diff = currentLP - LP;
+	if (diff > 0)
+	{
+		AddXP(diff, rewards.BasicRewards);
+		SetLPForSong(result.musicNo, LP);
+	}
+
+	rewards.Lp = LP;
+	rewards.DesigLp = titleBonus;
+	rewards.AchivementPointLp = achievLP;
+	rewards.SupporterLp = supportLP;
+	rewards.StageClearLp = rankLP;
+
+	// TODO: Compute rewards
+
+	// Do something for rewards
+	// Idea: Better rewards if higher grade/metals?
+	// Idea: Supports give special rewards?
+
+	// First time clear bonus
+	if (isFirstTimeCleared)
+	{
+		const int firstTimeClearCubes = pattern->Level * 10;
+		AddItem(CMSData::ItemConstants::StarCube, firstTimeClearCubes);
+		rewards.BasicRewards.push_back(RewardItem(CMSData::ItemConstants::StarCube, firstTimeClearCubes));
+	}
+
+	// TODO - calc gold correctly
+	AddItem(CMSData::ItemConstants::Gold, 500);
+	rewards.BasicRewards.push_back(RewardItem(CMSData::ItemConstants::Gold, 500));
+
+	// Save changes
+	PlayerDB::SaveAllPlayerData();
+
+	return true;
+}
+
 bool PlayerDB::LoadAllPlayerData()
 {
 	gPlayers.clear();
@@ -348,20 +557,7 @@ GameResult* PlayerDB::GetGameResult(player_id playerID, int musicNo, int pattern
 	PlayerDataBlob* blob = FindPlayerDataBlob(playerID);
 	if (blob)
 	{
-		for (GameResult& itr : blob->gameResults)
-		{
-			if (itr.musicNo == musicNo && itr.patternNo == patternNo)
-			{
-				result = &itr;
-				break;
-			}
-		}
-		// Add a new result for this music/pattern
-		if (result == nullptr)
-		{
-			blob->gameResults.push_back(GameResult());
-			result = &blob->gameResults.back();
-		}
+		result = blob->GetGameResult(musicNo, patternNo);
 	}
 	return result;
 }

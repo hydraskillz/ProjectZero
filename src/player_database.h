@@ -6,6 +6,7 @@
 #include "response_data.h"
 #include "item_and_shop_data.h"
 #include "game_result.h"
+#include "result_rewards.h"
 
 #include <string>
 
@@ -15,6 +16,7 @@ struct PlayerDataBlob : public Json::ISerializeable
 	ResponseData playerState;
 	UserItemAndShop_Datainfo itemData;
 	std::vector<GameResult> gameResults;
+	int AchievementPoints = 0;
 
 	void Serialize(Json::Serializer& serializer) override
 	{
@@ -28,6 +30,14 @@ struct PlayerDataBlob : public Json::ISerializeable
 	void RemoveItem(const std::string& itemCode, int quantity);
 	int GetPackagePrice(const std::string& packageCode, int basePrice) const;
 	void AddPackage(const std::string& packageCode);
+	void AddXP(int amount, std::vector<RewardItem>& rewards);
+	void RefreshAchievementPoints();
+	int GetSupportPower(const std::string& supportID) const;
+	float GetTitleSupportBonus() const;
+	int GetLPForSong(int musicNo) const;
+	void SetLPForSong(int musicNo, int LP);
+	GameResult* GetGameResult(int musicNo, int patternNo);
+	bool DoClear(const GameResult& result, ResultRewards& rewards);
 };
 
 namespace PlayerDB

@@ -66,8 +66,49 @@ bool Protocol::GetGameResult::Response::HandleRequest(const rapidjson::Value& ac
 
 bool Protocol::DoClearStandard::Response::HandleRequest(const rapidjson::Value& action, player_id playerID)
 {
-	// TODO
-	return true;
+	Request req;
+	DeserializeRequest(action, req);
+
+	// TODO: block it if they don't have it unlocked?
+	// TODO: check if they even passed it?
+	PlayerDataBlob* playerData = PlayerDB::FindPlayerDataBlob(playerID);
+	bool success = false;
+	if (playerData)
+	{
+		success = true;
+
+		const GameResult& result = req.aparams.result;
+		// Cleared it
+		if (result.isCleared)
+		{
+			if (!playerData->DoClear(result, ResultRewards))
+			{
+				// Something went wrong
+				return false;
+			}
+
+			// TODO: Roll for support get
+			//
+			isGetSuppoterCard = false; // Nothing for now...
+
+			// Assign results
+			PlayerInfo = playerData->playerInfo;
+
+			// Full sync on items, achievs, quest, stages, supports
+			ItemList = playerData->itemData.items;
+			PlayerAchievement = playerData->playerState.player_Achievement;
+			PlayerQuest = playerData->playerState.player_Quest;
+			SupportList = playerData->itemData.support;
+
+			// Better send the whole item list twice
+			ResponseData.items = playerData->itemData.items;
+			// What even is this
+			ResponseData.player_MetaResult_SavePeople = playerData->playerState.player_MetaResult_SavePeople;
+			// Send all the quest again because why not
+			ResponseData.player_Quest = playerData->playerState.player_Quest;
+		}
+	}
+	return success;
 }
 
 bool Protocol::DoSupportGacha::Response::HandleRequest(const rapidjson::Value& action, player_id playerID)
@@ -234,55 +275,15 @@ bool Protocol::DoClearStory::Response::HandleRequest(const rapidjson::Value& act
 					return false;
 				}
 
-				// Update game results
-				GameResult* currentResult = PlayerDB::GetGameResult(playerID, result.musicNo, result.patternNo);
-				if (currentResult)
+				if (!playerData->DoClear(result, ResultRewards))
 				{
-					currentResult->isCleared = true;
-					currentResult->playCount++;
-
-					if (result.score > currentResult->score)
-					{
-						currentResult->score = result.score;
-					}
-
-					// TODO - assign other stuff like medals and grades
-				}
-
-				// TODO: Compute rewards
-
-				// Do something for rewards
-				// Idea: Better rewards if higher grade/metals?
-				// Idea: Supports give special rewards?
-
-				playerData->AddItem(CMSData::ItemConstants::Gold, 500);
-				playerData->AddItem(CMSData::ItemConstants::StarCube, 10);
-
-				ResultRewards.BasicRewards.push_back(RewardItem(CMSData::ItemConstants::Gold, 500));
-				ResultRewards.SupportRewards.push_back(RewardItem(CMSData::ItemConstants::StarCube, 10));
-
-				// TODO  - Calculate LP reward
-				//
-				playerData->playerInfo.exp += 10000;
-
-				// Handle level up
-				for (const CMS_UserLevel& levelData : cmsData.cms_UserLevel)
-				{
-					if (levelData.Level > playerData->playerInfo.level && playerData->playerInfo.exp >= levelData.TotalNeedExp)
-					{
-						playerData->playerInfo.level = levelData.Level;
-
-						playerData->AddItem(levelData.RewardItemCode, levelData.RewardItemCount);
-						ResultRewards.BasicRewards.push_back(RewardItem(levelData.RewardItemCode, levelData.RewardItemCount));
-					}
+					// Something went wrong
+					return false;
 				}
 
 				// TODO: Roll for support get
 				//
 				isGetSuppoterCard = false; // Nothing for now...
-
-				// Save player data
-				PlayerDB::SaveAllPlayerData();
 
 				// Assign results
 				PlayerInfo = playerData->playerInfo;

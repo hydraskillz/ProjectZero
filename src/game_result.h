@@ -34,6 +34,20 @@ struct GameResult : public Json::ISerializeable
 		acquiredMedalIds[3] = 0;
 	}
 
+	int GetLPFromRank() const
+	{
+		int LP = 0;
+		switch (rankIndex)
+		{
+			case 5: LP = 9000; break;
+			case 4: LP = 8500; break;
+			case 3: LP = 8000; break;
+			case 2: case 1: LP = 7000; break;
+			default: break;
+		}
+		return LP;
+	}
+
 	void Serialize(Json::Serializer& serializer) override
 	{
 		SERIALIZE_JSON(musicNo);

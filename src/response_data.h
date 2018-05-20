@@ -94,8 +94,15 @@ struct Player_Quest : public Json::ISerializeable
 
 struct Player_Achievement : public Json::ISerializeable
 {
+	int AchievementId;
+	bool IsClear;
+	int PerformCount;		// progress tracker
+
 	void Serialize(Json::Serializer& serializer) override
 	{
+		SERIALIZE_JSON(AchievementId);
+		SERIALIZE_JSON(IsClear);
+		SERIALIZE_JSON(PerformCount);
 	}
 };
 
@@ -136,8 +143,13 @@ struct Player_Episode : public Json::ISerializeable
 
 struct Player_MetaResult_SavePeople : public Json::ISerializeable
 {
+	int ArcadeStageNo = 0;
+	int SavePeopleCount = 0;
+
 	void Serialize(Json::Serializer& serializer) override
 	{
+		SERIALIZE_JSON(ArcadeStageNo);
+		SERIALIZE_JSON(SavePeopleCount);
 	}
 };
 

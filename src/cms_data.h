@@ -11,6 +11,8 @@
 
 struct CMS_Achievement : public Json::ISerializeable
 {
+	int GetSearchKey() const { return AchievementId; }
+
 	int AchievementId;
 	int AchievementScore;
 	int Difficulty;
@@ -747,6 +749,8 @@ struct CMS_Shop_PackageDetail : public Json::ISerializeable
 };
 struct CMS_Support : public Json::ISerializeable
 {
+	const std::string& GetSearchKey() const { return SupportID; }
+
 	std::string SupportID;
 	int Category;
 	int Grade;
@@ -799,6 +803,8 @@ struct CMS_Support_Grade : public Json::ISerializeable
 };
 struct CMS_Support_StageSet : public Json::ISerializeable
 {
+	int GetSearchKey() const { return MusicNo; }
+
 	int MusicNo;
 	std::string Left;
 	std::string LeftMid;
@@ -1038,12 +1044,16 @@ struct CMSData : public Json::ISerializeable
 	std::vector<CMS_LoadingTip> cms_LoadingTip;
 
 	std::map<std::string, std::vector<std::reference_wrapper<CMS_Shop_PackageDetail>>> shopPackageDetailLists;
+	std::map<int, std::map<int, CMS_Music_Pattern*>> musicPatternMapping;
+	std::map<std::string, std::map<int, int>> supportPowerMapping;
 
 	void Serialize(Json::Serializer& serializer) override
 	{
 		if (!serializer.IsWriting())
 		{
 			shopPackageDetailLists.clear();
+			musicPatternMapping.clear();
+			supportPowerMapping.clear();
 		}
 
 		SERIALIZE_JSON(isUpdate);
@@ -1094,7 +1104,47 @@ struct CMSData : public Json::ISerializeable
 			{
 				shopPackageDetailLists[packageDetail.PackageCode].push_back(packageDetail);
 			}
+
+			for (CMS_Music_Pattern& pattern : cms_Music_Pattern)
+			{
+				musicPatternMapping[pattern.MusicNo][pattern.PatternNo] = &pattern;
+			}
+
+			for (const CMS_Support_Value& supportValue : cms_Support_Value)
+			{
+				supportPowerMapping[supportValue.SupportID][supportValue.Level] = supportValue.Value;
+			}
 		}
+	}
+
+	const CMS_Music_Pattern* GetMusicPattern(int musicNo, int patternNo) const
+	{
+		const CMS_Music_Pattern* pattern = nullptr;
+		auto itr = musicPatternMapping.find(musicNo);
+		if (itr != musicPatternMapping.end())
+		{
+			auto itr2 = itr->second.find(patternNo);
+			if (itr2 != itr->second.end())
+			{
+				pattern = itr2->second;
+			}
+		}
+		return pattern;
+	}
+
+	int GetSupportPower(const std::string& supportID, int level) const
+	{
+		int power = 0;
+		auto itr = supportPowerMapping.find(supportID);
+		if (itr != supportPowerMapping.end())
+		{
+			auto itr2 = itr->second.find(level);
+			if (itr2 != itr->second.end())
+			{
+				power = itr2->second;
+			}
+		}
+		return power;
 	}
 
 	int GetMaxShopByGoldCount() const
@@ -1133,5 +1183,7 @@ CMS_CONTAINER_GETTER(Shop_BuyGold);
 CMS_CONTAINER_GETTER(MasterValue);
 CMS_CONTAINER_GETTER(Shop_Package);
 CMS_CONTAINER_GETTER(Shop_PackageDetail);
+CMS_CONTAINER_GETTER(Achievement);
+CMS_CONTAINER_GETTER(Support_StageSet);
 
 #undef CMS_CONTAINER_GETTER

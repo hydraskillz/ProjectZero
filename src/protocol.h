@@ -326,7 +326,7 @@ namespace Protocol
 			std::vector<Player_Support> SupportList;
 			std::vector<Player_Achievement> PlayerAchievement;
 			std::vector<Player_Quest> PlayerQuest;
-			ResponseData ResponseData;
+			ResponseDataClearResult ResponseData;
 			ResultRewards ResultRewards;
 			bool isGetSuppoterCard;
 			SupportGachaResult DoSupportGachaResult;
