@@ -751,6 +751,21 @@ struct CMS_Support : public Json::ISerializeable
 {
 	const std::string& GetSearchKey() const { return SupportID; }
 
+	enum SupportCategory
+	{
+		// generic tier names until I figure what these are
+		TIER_1 = 1, // cano
+		TIER_2 = 2, // mew
+		TIER_3 = 3, // r0
+		TIER_4 = 4, // spiny, SPIRO
+		TIER_5 = 5, // stanya
+		TIER_6 = 6, // V
+		TIER_7 = 7, // car, com, pop, ser, toto, yur
+		TIER_8 = 8, // core
+
+		CORE = TIER_8,	// Cores are in a special tier by themselves
+	};
+
 	std::string SupportID;
 	int Category;
 	int Grade;
@@ -1185,5 +1200,6 @@ CMS_CONTAINER_GETTER(Shop_Package);
 CMS_CONTAINER_GETTER(Shop_PackageDetail);
 CMS_CONTAINER_GETTER(Achievement);
 CMS_CONTAINER_GETTER(Support_StageSet);
+CMS_CONTAINER_GETTER(Support);
 
 #undef CMS_CONTAINER_GETTER

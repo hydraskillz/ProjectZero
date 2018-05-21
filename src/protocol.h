@@ -290,10 +290,9 @@ namespace Protocol
 		};
 	}
 
-	namespace DoClearStandard
+	// Base class for clear messages
+	namespace DoClear
 	{
-		constexpr const char* ID = "do_clear_standard";
-
 		struct Aparams : public Json::ISerializeable
 		{
 			GameResult result;
@@ -309,8 +308,6 @@ namespace Protocol
 		struct Request : Protocol::Request
 		{
 			Aparams aparams;
-
-			const char* GetID() const override { return ID; }
 
 			void Serialize(Json::Serializer& serializer) override
 			{
@@ -329,10 +326,8 @@ namespace Protocol
 			ResponseDataClearResult ResponseData;
 			ResultRewards ResultRewards;
 			bool isGetSuppoterCard;
-			SupportGachaResult DoSupportGachaResult;
+			SupportGachaResultClear DoSupportGachaResult;
 			CMS_Support support;
-
-			const char* GetID() const override { return ID; }
 
 			void Serialize(Json::Serializer& serializer) override
 			{
@@ -350,6 +345,22 @@ namespace Protocol
 				SERIALIZE_JSON(support);
 			}
 
+			bool HandleRequest(const Request& request, player_id playerID);
+		};
+	}
+
+	namespace DoClearStandard
+	{
+		constexpr const char* ID = "do_clear_standard";
+
+		struct Request : Protocol::DoClear::Request
+		{
+			const char* GetID() const override { return ID; }
+		};
+
+		struct Response : Protocol::DoClear::Response
+		{
+			const char* GetID() const override { return ID; }
 			bool HandleRequest(const rapidjson::Value& action, player_id playerID) override;
 		};
 	}
@@ -796,60 +807,14 @@ namespace Protocol
 	{
 		constexpr const char* ID = "do_clear_story";
 
-		struct Aparams : public Json::ISerializeable
-		{
-			GameResult result;
-			std::string EquipedDesignation;
-
-			void Serialize(Json::Serializer& serializer) override
-			{
-				SERIALIZE_JSON(result);
-				SERIALIZE_JSON(EquipedDesignation);
-			}
-		};
-
-		struct Request : Protocol::Request
+		struct Request : Protocol::DoClear::Request
 		{
 			const char* GetID() const override { return ID; }
-
-			Aparams aparams;
-
-			void Serialize(Json::Serializer& serializer) override
-			{
-				Protocol::Request::Serialize(serializer);
-				SERIALIZE_JSON(aparams);
-			}
 		};
 
-		struct Response : Protocol::Response
+		struct Response : Protocol::DoClear::Response
 		{
 			const char* GetID() const override { return ID; }
-
-			PlayerInfo PlayerInfo;
-			std::vector<PlayerData_ArcadeStage> StageList;
-			std::vector<Player_Item> ItemList;
-			std::vector<Player_Support> SupportList;
-			std::vector<Player_Achievement> PlayerAchievement;
-			std::vector<Player_Quest> PlayerQuest;
-			ResponseDataClearResult ResponseData;
-			ResultRewards ResultRewards;
-			bool isGetSuppoterCard;
-			SupportGachaResult DoSupportGachaResult;
-
-			void Serialize(Json::Serializer& serializer) override
-			{
-				Protocol::Response::Serialize(serializer);
-				SERIALIZE_JSON(PlayerInfo);
-				SERIALIZE_JSON(StageList);
-				SERIALIZE_JSON(ItemList);
-				SERIALIZE_JSON(SupportList);
-				SERIALIZE_JSON(PlayerAchievement);
-				SERIALIZE_JSON(PlayerQuest);
-				SERIALIZE_JSON(ResponseData);
-				SERIALIZE_JSON(ResultRewards);
-				SERIALIZE_JSON(isGetSuppoterCard);
-				SERIALIZE_JSON(DoSupportGachaResult);
-			}
 			bool HandleRequest(const rapidjson::Value& action, player_id playerID) override;
 		};
 	}
@@ -982,7 +947,6 @@ namespace Protocol
 	// change username
 	// clear_chaotic
 	// clear_episode
-	// clear_standard
 	// start_chaotic
 	// start_episode
 	// start_standard

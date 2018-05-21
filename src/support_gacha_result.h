@@ -23,3 +23,15 @@ struct SupportGachaResult : public Json::ISerializeable
 		SERIALIZE_JSON(support);
 	}
 };
+
+struct SupportGachaResultClear : public Json::ISerializeable
+{
+	std::vector<CMS_Support> resultSupporter;
+	std::vector<Player_Support> support;
+
+	void Serialize(Json::Serializer& serializer) override
+	{
+		SERIALIZE_JSON(resultSupporter);
+		SERIALIZE_JSON(support);
+	}
+};

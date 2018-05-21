@@ -48,6 +48,32 @@ struct GameResult : public Json::ISerializeable
 		return LP;
 	}
 
+	int GetGoldForClear() const
+	{
+		int gold = 0;
+
+		// TODO - move this to data
+		switch (rankIndex)
+		{
+			case 5: gold = 150; break;
+			case 4: gold = 100; break;
+			case 3: gold = 50; break;
+			case 2: case 1: gold = 25; break;
+			default: break;
+		}
+
+		// Accuracy mult
+		gold = static_cast<int>(std::ceil(gold * rating));
+
+		// Double reward for first time or 10th time
+		if (playCount == 1 || playCount == 10)
+		{
+			gold *= 2;
+		}
+
+		return gold;
+	}
+
 	void Serialize(Json::Serializer& serializer) override
 	{
 		SERIALIZE_JSON(musicNo);

@@ -283,7 +283,81 @@ GameResult* PlayerDataBlob::GetGameResult(int musicNo, int patternNo)
 	return result;
 }
 
-bool PlayerDataBlob::DoClear(const GameResult& result, ResultRewards& rewards)
+void PlayerDataBlob::GetItemRewardForSupport(const std::string& supportID, std::vector<RewardItem>& rewards)
+{
+	Player_Item reward;
+	for (const Player_Support& support : itemData.support)
+	{
+		if (support.SupportID == supportID)
+		{
+			const CMSData& cmsData = Server::GetCMSData();
+			const CMS_Support* supportData = cmsData.FindDataByKey<CMS_Support>(supportID);
+			if (supportData)
+			{
+				const int quantityMult = (support.Grade - 1) * support.Level;
+				// TODO - something better + move to data
+				switch (supportData->Category)
+				{
+					case CMS_Support::TIER_1:
+						reward = Player_Item("Mic_1", 1 * quantityMult);
+						break;
+
+					case CMS_Support::TIER_2:
+						reward = Player_Item("Mic_2", 1 * quantityMult);
+						break;
+
+					case CMS_Support::TIER_3:
+						if (support.Grade < 4)
+							reward = Player_Item("Steel_1", 1 * quantityMult);
+						else if (support.Grade < 5)
+							reward = Player_Item("Steel_2", 1 * quantityMult);
+						else
+							reward = Player_Item("Steel_3", 1 * quantityMult);
+						break;
+
+					case CMS_Support::TIER_5:
+						if (support.Grade < 4)
+							reward = Player_Item("Fabric_1", 1 * quantityMult);
+						else if (support.Grade < 5)
+							reward = Player_Item("Fabric_2", 1 * quantityMult);
+						else
+							reward = Player_Item("Fabric_3", 1 * quantityMult);
+						break;
+
+					case CMS_Support::TIER_4:
+					case CMS_Support::TIER_6:
+						if (support.Grade < 4)
+							reward = Player_Item("Chaotic_Coin_C", 1 * quantityMult);
+						else if (support.Grade < 5)
+							reward = Player_Item("Chaotic_Coin_B", 1 * quantityMult);
+						else
+							reward = Player_Item("Chaotic_Coin_A", 1 * quantityMult);
+						break;
+
+					case CMS_Support::TIER_7:
+						reward = Player_Item("StarCube", 1 * quantityMult);
+						break;
+
+					case CMS_Support::TIER_8:
+						reward = Player_Item("GOLD", 100 * quantityMult);
+						break;
+
+					default:
+						break;
+				}
+			}
+			break;
+		}
+	}
+
+	if (reward.Quantity > 0)
+	{
+		AddItem(reward.ItemCode, reward.Quantity);
+		rewards.push_back(RewardItem(reward.ItemCode, reward.Quantity));
+	}
+}
+
+bool PlayerDataBlob::DoClear(const GameResult& result, ResultRewards& rewards, std::vector<CMS_Support>& supports)
 {
 	// Update game results
 	GameResult* currentResult = GetGameResult(result.musicNo, result.patternNo);
@@ -359,11 +433,10 @@ bool PlayerDataBlob::DoClear(const GameResult& result, ResultRewards& rewards)
 	rewards.SupporterLp = supportLP;
 	rewards.StageClearLp = rankLP;
 
-	// TODO: Compute rewards
-
-	// Do something for rewards
-	// Idea: Better rewards if higher grade/metals?
-	// Idea: Supports give special rewards?
+	// Base reward - TODO - should other items drop here too?
+	const int goldReward = result.GetGoldForClear();
+	AddItem(CMSData::ItemConstants::Gold, goldReward);
+	rewards.BasicRewards.push_back(RewardItem(CMSData::ItemConstants::Gold, goldReward));
 
 	// First time clear bonus
 	if (isFirstTimeCleared)
@@ -373,9 +446,14 @@ bool PlayerDataBlob::DoClear(const GameResult& result, ResultRewards& rewards)
 		rewards.BasicRewards.push_back(RewardItem(CMSData::ItemConstants::StarCube, firstTimeClearCubes));
 	}
 
-	// TODO - calc gold correctly
-	AddItem(CMSData::ItemConstants::Gold, 500);
-	rewards.BasicRewards.push_back(RewardItem(CMSData::ItemConstants::Gold, 500));
+	// Support rewards
+	GetItemRewardForSupport(supportStageSet->Left, rewards.SupportRewards);
+	GetItemRewardForSupport(supportStageSet->LeftMid, rewards.SupportRewards);
+	GetItemRewardForSupport(supportStageSet->Right, rewards.SupportRewards);
+	GetItemRewardForSupport(supportStageSet->RightMid, rewards.SupportRewards);
+
+	// Support roll
+	supports.push_back(cmsData.cms_Support[0]);
 
 	// Save changes
 	PlayerDB::SaveAllPlayerData();

@@ -7,6 +7,7 @@
 #include "item_and_shop_data.h"
 #include "game_result.h"
 #include "result_rewards.h"
+#include "cms_data.h"
 
 #include <string>
 
@@ -37,7 +38,8 @@ struct PlayerDataBlob : public Json::ISerializeable
 	int GetLPForSong(int musicNo) const;
 	void SetLPForSong(int musicNo, int LP);
 	GameResult* GetGameResult(int musicNo, int patternNo);
-	bool DoClear(const GameResult& result, ResultRewards& rewards);
+	void GetItemRewardForSupport(const std::string& supportID, std::vector<RewardItem>& rewards);
+	bool DoClear(const GameResult& result, ResultRewards& rewards, std::vector<CMS_Support>& supports);
 };
 
 namespace PlayerDB

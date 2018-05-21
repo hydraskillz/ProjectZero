@@ -64,11 +64,8 @@ bool Protocol::GetGameResult::Response::HandleRequest(const rapidjson::Value& ac
 	return false;
 }
 
-bool Protocol::DoClearStandard::Response::HandleRequest(const rapidjson::Value& action, player_id playerID)
+bool Protocol::DoClear::Response::HandleRequest(const Request& request, player_id playerID)
 {
-	Request req;
-	DeserializeRequest(action, req);
-
 	// TODO: block it if they don't have it unlocked?
 	// TODO: check if they even passed it?
 	PlayerDataBlob* playerData = PlayerDB::FindPlayerDataBlob(playerID);
@@ -77,22 +74,25 @@ bool Protocol::DoClearStandard::Response::HandleRequest(const rapidjson::Value& 
 	{
 		success = true;
 
-		const GameResult& result = req.aparams.result;
+		const GameResult& result = request.aparams.result;
 		// Cleared it
 		if (result.isCleared)
 		{
-			if (!playerData->DoClear(result, ResultRewards))
+			if (!playerData->DoClear(result, ResultRewards, DoSupportGachaResult.resultSupporter))
 			{
 				// Something went wrong
 				return false;
 			}
 
-			// TODO: Roll for support get
-			//
-			isGetSuppoterCard = false; // Nothing for now...
-
 			// Assign results
 			PlayerInfo = playerData->playerInfo;
+
+			isGetSuppoterCard = !DoSupportGachaResult.resultSupporter.empty();
+			if (isGetSuppoterCard)
+			{
+				// The support list is already synced below, so this is useless
+				DoSupportGachaResult.support = playerData->itemData.support;
+			}
 
 			// Full sync on items, achievs, quest, stages, supports
 			ItemList = playerData->itemData.items;
@@ -102,13 +102,20 @@ bool Protocol::DoClearStandard::Response::HandleRequest(const rapidjson::Value& 
 
 			// Better send the whole item list twice
 			ResponseData.items = playerData->itemData.items;
-			// What even is this
+			// LP results
 			ResponseData.player_MetaResult_SavePeople = playerData->playerState.player_MetaResult_SavePeople;
 			// Send all the quest again because why not
 			ResponseData.player_Quest = playerData->playerState.player_Quest;
 		}
 	}
 	return success;
+}
+
+bool Protocol::DoClearStandard::Response::HandleRequest(const rapidjson::Value& action, player_id playerID)
+{
+	Request req;
+	DeserializeRequest(action, req);
+	return DoClear::Response::HandleRequest(req, playerID);
 }
 
 bool Protocol::DoSupportGacha::Response::HandleRequest(const rapidjson::Value& action, player_id playerID)
@@ -275,32 +282,11 @@ bool Protocol::DoClearStory::Response::HandleRequest(const rapidjson::Value& act
 					return false;
 				}
 
-				if (!playerData->DoClear(result, ResultRewards))
+				if (!DoClear::Response::HandleRequest(req, playerID))
 				{
 					// Something went wrong
 					return false;
 				}
-
-				// TODO: Roll for support get
-				//
-				isGetSuppoterCard = false; // Nothing for now...
-
-				// Assign results
-				PlayerInfo = playerData->playerInfo;
-
-				// Full sync on items, achievs, quest, stages, supports
-				ItemList = playerData->itemData.items;
-				PlayerAchievement = playerData->playerState.player_Achievement;
-				PlayerQuest = playerData->playerState.player_Quest;
-				StageList = playerData->playerState.playerData_ArcadeStage;
-				SupportList = playerData->itemData.support;
-
-				// Better send the whole item list twice
-				ResponseData.items = playerData->itemData.items;
-				// What even is this
-				ResponseData.player_MetaResult_SavePeople = playerData->playerState.player_MetaResult_SavePeople;
-				// Send all the quest again because why not
-				ResponseData.player_Quest = playerData->playerState.player_Quest;
 			}
 		}
 	}
